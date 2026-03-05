@@ -80,7 +80,7 @@
       },
       {
         "command": "diffus.copyPathForClaude",
-        "title": "Copy Path for Claude Code"
+        "title": "Copy References for Claude Code"
       }
     ],
     "menus": {

@@ -1,6 +1,6 @@
 export const DEBOUNCE_MS = 300;
 
-export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+export const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1 MB
 
 export const ADDED_LINE_BG = 'rgba(0, 180, 0, 0.25)';
 export const ADDED_LINE_BG_OVERVIEW = 'rgba(0, 180, 0, 0.6)';

@@ -79,6 +79,10 @@
         "icon": "$(diff)"
       },
       {
+        "command": "diffus.showChangedFiles",
+        "title": "Diffus: Show Changed Files"
+      },
+      {
         "command": "diffus.copyPathForClaude",
         "title": "Copy References for Claude Code"
       }

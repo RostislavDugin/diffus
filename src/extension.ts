@@ -73,6 +73,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('diffus.rejectAllFile', rejectAllFile),
     vscode.commands.registerCommand('diffus.clearState', clearState),
     vscode.commands.registerCommand('diffus.showDiff', showDiff),
+    vscode.commands.registerCommand('diffus.showChangedFiles', showChangedFiles),
     vscode.commands.registerCommand('diffus.copyPathForClaude', copyPathForClaude),
   );
 
@@ -213,6 +214,27 @@ function toggleTracking(): void {
     stopTracking();
   } else {
     startTracking();
+  }
+}
+
+async function showChangedFiles(): Promise<void> {
+  const changedFiles = hunkManager.getChangedFiles();
+  if (changedFiles.length === 0) {
+    return;
+  }
+
+  const items = changedFiles.map((filePath) => ({
+    label: vscode.workspace.asRelativePath(filePath),
+    filePath,
+  }));
+
+  const selected = await vscode.window.showQuickPick(items, {
+    placeHolder: 'Select a changed file to open',
+  });
+
+  if (selected) {
+    const doc = await vscode.workspace.openTextDocument(selected.filePath);
+    await vscode.window.showTextDocument(doc);
   }
 }
 

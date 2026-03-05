@@ -9,7 +9,7 @@ export class StatusBarManager {
   constructor() {
     this.statusBarItem = vscode.window.createStatusBarItem(
       'diffus.tracking',
-      vscode.StatusBarAlignment.Left,
+      vscode.StatusBarAlignment.Right,
       -100,
     );
     this.statusBarItem.name = 'Diffus Tracking';
@@ -20,18 +20,19 @@ export class StatusBarManager {
 
     this.fileCounterItem = vscode.window.createStatusBarItem(
       'diffus.fileCounter',
-      vscode.StatusBarAlignment.Left,
+      vscode.StatusBarAlignment.Right,
       -101,
     );
     this.fileCounterItem.name = 'Diffus File Counter';
+    this.fileCounterItem.command = 'diffus.showChangedFiles';
 
     this.clearStateItem = vscode.window.createStatusBarItem(
       'diffus.clearState',
-      vscode.StatusBarAlignment.Left,
+      vscode.StatusBarAlignment.Right,
       -102,
     );
     this.clearStateItem.name = 'Diffus Clear State';
-    this.clearStateItem.text = '$(trash) Clear';
+    this.clearStateItem.text = '$(trash)';
     this.clearStateItem.tooltip = 'Diffus: Clear all tracking state';
     this.clearStateItem.command = 'diffus.clearState';
   }
@@ -50,7 +51,7 @@ export class StatusBarManager {
         this.statusBarItem.tooltip = 'Diffus: Stop tracking file changes';
         if (changedFileCount > 0) {
           this.fileCounterItem.text = `$(diff) ${changedFileCount} file${changedFileCount !== 1 ? 's' : ''}`;
-          this.fileCounterItem.tooltip = `${changedFileCount} changed file${changedFileCount !== 1 ? 's' : ''}`;
+          this.fileCounterItem.tooltip = `${changedFileCount} changed file${changedFileCount !== 1 ? 's' : ''} (click to see list)`;
           this.fileCounterItem.show();
         } else {
           this.fileCounterItem.hide();
@@ -63,7 +64,7 @@ export class StatusBarManager {
         this.statusBarItem.tooltip = 'Diffus: Start tracking (pending diffs remain)';
         if (changedFileCount > 0) {
           this.fileCounterItem.text = `$(diff) ${changedFileCount} pending`;
-          this.fileCounterItem.tooltip = `${changedFileCount} file${changedFileCount !== 1 ? 's' : ''} with pending diffs`;
+          this.fileCounterItem.tooltip = `${changedFileCount} file${changedFileCount !== 1 ? 's' : ''} with pending diffs (click to see list)`;
           this.fileCounterItem.show();
         } else {
           this.fileCounterItem.hide();

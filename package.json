@@ -4,6 +4,17 @@
   "description": "Inline diff review for AI code changes",
   "version": "0.1.0",
   "publisher": "local",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "npx @vscode/vsce package",
+    "lint": "prettier --write \"src/**/*.ts\" && eslint src/ --fix && tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "lint:check": "prettier --check \"src/**/*.ts\" && eslint src/ && tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "prepare": "husky",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -103,17 +114,6 @@
       }
     ]
   },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "package": "npx @vscode/vsce package",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
-    "prepare": "husky"
-  },
   "lint-staged": {
     "src/**/*.ts": [
       "prettier --write",
@@ -135,7 +135,8 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.3.2",
     "prettier": "^3.8.1",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "diff": "^5.2.0",

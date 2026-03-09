@@ -1,7 +1,6 @@
 node_modules/
 out/
 dist/
-*.vsix
 *.js.map
 .vscode-test/
 .claude

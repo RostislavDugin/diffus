@@ -110,12 +110,12 @@
           "group": "navigation@2"
         },
         {
-          "command": "diffus.acceptAllFile",
+          "command": "diffus.rejectAllFile",
           "when": "diffus.fileHasChanges",
           "group": "navigation@3"
         },
         {
-          "command": "diffus.rejectAllFile",
+          "command": "diffus.acceptAllFile",
           "when": "diffus.fileHasChanges",
           "group": "navigation@4"
         }

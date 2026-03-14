@@ -141,10 +141,7 @@ async function restorePersistedState(): Promise<void> {
           hunkManager.setHunksForFile(filePath, persisted.sessionId, hunks);
         }
       } catch {
-        const hunks = computeHunks(snapshotContent, '', persisted.sessionId, filePath);
-        if (hunks.length > 0) {
-          hunkManager.setHunksForFile(filePath, persisted.sessionId, hunks);
-        }
+        // File was deleted — don't track it
       }
     }
 

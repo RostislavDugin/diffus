@@ -117,14 +117,8 @@ export class FileSystemWatcherManager {
       return;
     }
 
-    const snapshotContent = this.snapshotManager.getSnapshot(this.activeSessionId, filePath);
-    if (snapshotContent === undefined) {
-      return; // File wasn't tracked
-    }
-
-    // File was deleted — all snapshot lines are "removed"
-    const hunks = computeHunks(snapshotContent, '', this.activeSessionId, filePath);
-    this.hunkManager.setHunksForFile(filePath, this.activeSessionId, hunks);
+    // File was deleted — clear any tracked changes for it
+    this.hunkManager.removeAllHunksForFile(filePath);
   }
 
   dispose(): void {

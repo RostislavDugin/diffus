@@ -1,6 +1,5 @@
 import * as path from 'path';
-import * as vscode from 'vscode';
-import ignore, { Ignore } from 'ignore';
+import { execFile } from 'child_process';
 import { BINARY_EXTENSIONS, IGNORE_PATTERNS, MAX_FILE_SIZE } from './constants';
 
 export function isBinaryFile(filePath: string): boolean {
@@ -20,46 +19,42 @@ export function isFileTooLarge(size: number): boolean {
   return size > MAX_FILE_SIZE;
 }
 
-export async function loadGitignoreFilter(folder: vscode.WorkspaceFolder): Promise<Ignore> {
-  const ig = ignore();
-  const gitignoreFiles = await vscode.workspace.findFiles(
-    new vscode.RelativePattern(folder, '**/.gitignore'),
-  );
-
-  for (const fileUri of gitignoreFiles) {
-    try {
-      const content = Buffer.from(await vscode.workspace.fs.readFile(fileUri)).toString('utf-8');
-
-      const relDir = path.relative(folder.uri.fsPath, path.dirname(fileUri.fsPath));
-      const normalizedDir = relDir.replace(/\\/g, '/');
-
-      const lines = content
-        .split(/\r?\n/)
-        .filter((line) => line.trim() !== '' && !line.startsWith('#'));
-
-      if (!normalizedDir) {
-        // Root .gitignore — add rules directly
-        ig.add(lines);
-      } else {
-        // Nested .gitignore — prefix rules with relative directory
-        ig.add(
-          lines.map((line) => {
-            const negated = line.startsWith('!');
-            const pattern = negated ? line.slice(1) : line;
-            const prefixed = `${normalizedDir}/${pattern}`;
-            return negated ? `!${prefixed}` : prefixed;
-          }),
-        );
+export async function checkGitIgnored(filePath: string, cwd: string): Promise<boolean> {
+  const relative = path.relative(cwd, filePath).replace(/\\/g, '/');
+  return new Promise<boolean>((resolve) => {
+    execFile('git', ['check-ignore', '-q', relative], { cwd }, (error) => {
+      if (error && 'code' in error && typeof error.code === 'number') {
+        // exit code 1 = not ignored, other codes = error
+        resolve(false);
+        return;
       }
-    } catch {
-      // .gitignore file may have been deleted between listing and reading
-    }
-  }
-
-  return ig;
+      // exit code 0 = ignored, or no error
+      resolve(!error);
+    });
+  });
 }
 
-export function isGitignored(filter: Ignore, workspaceRoot: string, filePath: string): boolean {
-  const relative = path.relative(workspaceRoot, filePath).replace(/\\/g, '/');
-  return filter.ignores(relative);
+export async function batchCheckGitIgnored(filePaths: string[], cwd: string): Promise<Set<string>> {
+  if (filePaths.length === 0) {
+    return new Set();
+  }
+
+  const relativePaths = filePaths.map((fp) => path.relative(cwd, fp).replace(/\\/g, '/'));
+
+  return new Promise<Set<string>>((resolve) => {
+    const child = execFile('git', ['check-ignore', '--stdin', '-z'], { cwd }, (error, stdout) => {
+      if (error && !stdout) {
+        resolve(new Set());
+        return;
+      }
+      const ignoredRelative = stdout.split('\0').filter((s) => s.length > 0);
+      const ignoredAbsolute = new Set(ignoredRelative.map((rel) => path.resolve(cwd, rel)));
+      resolve(ignoredAbsolute);
+    });
+
+    if (child.stdin) {
+      child.stdin.write(relativePaths.join('\0'));
+      child.stdin.end();
+    }
+  });
 }

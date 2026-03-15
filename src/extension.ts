@@ -13,8 +13,6 @@ import { SnapshotContentProvider, SNAPSHOT_SCHEME } from './snapshotContentProvi
 import { DiffViewManager } from './diffViewManager';
 import { computeHunks } from './diffEngine';
 import { computeDecorationRanges } from './rangeCalculator';
-import { Ignore } from 'ignore';
-import { loadGitignoreFilter } from './fileUtils';
 import { copyPathForClaude } from './copyPathCommand';
 
 let state = TrackingState.Idle;
@@ -146,16 +144,10 @@ async function restorePersistedState(): Promise<void> {
     }
 
     if (persisted.trackingState === TrackingState.Tracking) {
-      const gitignoreFilters = new Map<string, Ignore>();
-      const folders = vscode.workspace.workspaceFolders ?? [];
-      for (const folder of folders) {
-        gitignoreFilters.set(folder.uri.fsPath, await loadGitignoreFilter(folder));
-      }
       watcherManager = new FileSystemWatcherManager(
         snapshotManager,
         hunkManager,
         persisted.sessionId,
-        gitignoreFilters,
       );
       watcherManager.start();
       state = TrackingState.Tracking;
@@ -176,16 +168,11 @@ async function restorePersistedState(): Promise<void> {
 }
 
 async function startTracking(): Promise<void> {
-  const { sessionId, gitignoreFilters } = await snapshotManager.startSession();
+  const { sessionId } = await snapshotManager.startSession();
   activeSessionId = sessionId;
 
   watcherManager?.stop();
-  watcherManager = new FileSystemWatcherManager(
-    snapshotManager,
-    hunkManager,
-    sessionId,
-    gitignoreFilters,
-  );
+  watcherManager = new FileSystemWatcherManager(snapshotManager, hunkManager, sessionId);
   watcherManager.start();
 
   state = TrackingState.Tracking;

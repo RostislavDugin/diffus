@@ -1,51 +1,42 @@
 import * as vscode from 'vscode';
 import { TrackingSession } from './types';
-import { Ignore } from 'ignore';
-import {
-  isBinaryFile,
-  shouldIgnorePath,
-  isFileTooLarge,
-  loadGitignoreFilter,
-  isGitignored,
-} from './fileUtils';
+import { isBinaryFile, shouldIgnorePath, isFileTooLarge, batchCheckGitIgnored } from './fileUtils';
 
 let sessionCounter = 0;
 
 export class SnapshotManager {
   private sessions: Map<string, TrackingSession> = new Map();
 
-  async startSession(): Promise<{
-    sessionId: string;
-    gitignoreFilters: Map<string, Ignore>;
-  }> {
+  async startSession(): Promise<{ sessionId: string }> {
     const sessionId = `session-${++sessionCounter}-${Date.now()}`;
     const snapshots = new Map<string, string>();
-    const gitignoreFilters = new Map<string, Ignore>();
 
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders) {
-      return { sessionId, gitignoreFilters };
+      return { sessionId };
     }
 
     for (const folder of workspaceFolders) {
-      const gitignore = await loadGitignoreFilter(folder);
-      gitignoreFilters.set(folder.uri.fsPath, gitignore);
-
       const files = await vscode.workspace.findFiles(
         new vscode.RelativePattern(folder, '**/*'),
         '**/node_modules/**',
       );
 
-      for (const fileUri of files) {
-        const filePath = fileUri.fsPath;
-        if (isBinaryFile(filePath) || shouldIgnorePath(filePath)) {
-          continue;
-        }
-        if (isGitignored(gitignore, folder.uri.fsPath, filePath)) {
+      // Filter by binary and hardcoded patterns first
+      const candidates = files
+        .map((f) => f.fsPath)
+        .filter((fp) => !isBinaryFile(fp) && !shouldIgnorePath(fp));
+
+      // Batch check gitignore via git
+      const ignored = await batchCheckGitIgnored(candidates, folder.uri.fsPath);
+
+      for (const filePath of candidates) {
+        if (ignored.has(filePath)) {
           continue;
         }
 
         try {
+          const fileUri = vscode.Uri.file(filePath);
           const stat = await vscode.workspace.fs.stat(fileUri);
           if (isFileTooLarge(stat.size)) {
             continue;
@@ -60,7 +51,7 @@ export class SnapshotManager {
 
     const session: TrackingSession = { id: sessionId, snapshots };
     this.sessions.set(sessionId, session);
-    return { sessionId, gitignoreFilters };
+    return { sessionId };
   }
 
   getSnapshot(sessionId: string, filePath: string): string | undefined {

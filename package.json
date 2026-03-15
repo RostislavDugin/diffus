@@ -157,7 +157,6 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "diff": "^5.2.0",
-    "ignore": "^7.0.5"
+    "diff": "^5.2.0"
   }
 }

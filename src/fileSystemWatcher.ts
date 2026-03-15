@@ -1,7 +1,7 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { DEBOUNCE_MS } from './constants';
-import { Ignore } from 'ignore';
-import { isBinaryFile, shouldIgnorePath, isFileTooLarge, isGitignored } from './fileUtils';
+import { isBinaryFile, shouldIgnorePath, isFileTooLarge, checkGitIgnored } from './fileUtils';
 import { computeHunks } from './diffEngine';
 import { SnapshotManager } from './snapshotManager';
 import { HunkManager } from './hunkManager';
@@ -18,7 +18,6 @@ export class FileSystemWatcherManager {
     private snapshotManager: SnapshotManager,
     private hunkManager: HunkManager,
     private activeSessionId: string,
-    private gitignoreFilters: Map<string, Ignore> = new Map(),
   ) {}
 
   start(): void {
@@ -51,15 +50,7 @@ export class FileSystemWatcherManager {
   }
 
   private isIgnored(filePath: string): boolean {
-    if (isBinaryFile(filePath) || shouldIgnorePath(filePath)) {
-      return true;
-    }
-    for (const [root, filter] of this.gitignoreFilters) {
-      if (filePath.startsWith(root) && isGitignored(filter, root, filePath)) {
-        return true;
-      }
-    }
-    return false;
+    return isBinaryFile(filePath) || shouldIgnorePath(filePath);
   }
 
   private onFileEvent(uri: vscode.Uri): void {
@@ -69,6 +60,12 @@ export class FileSystemWatcherManager {
 
     const filePath = uri.fsPath;
     if (this.isIgnored(filePath)) {
+      return;
+    }
+
+    // When a .gitignore file changes, re-check all tracked files
+    if (path.basename(filePath) === '.gitignore') {
+      this.onGitignoreChanged();
       return;
     }
 
@@ -88,6 +85,12 @@ export class FileSystemWatcherManager {
 
   private async processFileChange(uri: vscode.Uri): Promise<void> {
     const filePath = uri.fsPath;
+
+    const folder = vscode.workspace.getWorkspaceFolder(uri);
+    if (folder && (await checkGitIgnored(filePath, folder.uri.fsPath))) {
+      return;
+    }
+
     try {
       const stat = await vscode.workspace.fs.stat(uri);
       if (isFileTooLarge(stat.size)) {
@@ -104,6 +107,16 @@ export class FileSystemWatcherManager {
       this.hunkManager.setHunksForFile(filePath, this.activeSessionId, hunks);
     } catch {
       // File might have been deleted between event and processing
+    }
+  }
+
+  private async onGitignoreChanged(): Promise<void> {
+    const changedFiles = this.hunkManager.getChangedFiles();
+    for (const filePath of changedFiles) {
+      const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
+      if (folder && (await checkGitIgnored(filePath, folder.uri.fsPath))) {
+        this.hunkManager.removeAllHunksForFile(filePath);
+      }
     }
   }
 

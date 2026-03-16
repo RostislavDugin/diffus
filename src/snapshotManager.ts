@@ -1,6 +1,34 @@
 import * as vscode from 'vscode';
 import { TrackingSession } from './types';
-import { isBinaryFile, shouldIgnorePath, isFileTooLarge, batchCheckGitIgnored } from './fileUtils';
+import { isBinaryFile, shouldIgnorePath, batchCheckGitIgnored } from './fileUtils';
+import { MAX_FILE_SIZE, SNAPSHOT_READ_CONCURRENCY } from './constants';
+import { log } from './logger';
+
+export async function readFilesParallel(
+  filePaths: string[],
+  snapshots: Map<string, string>,
+): Promise<void> {
+  let index = 0;
+
+  async function worker(): Promise<void> {
+    while (index < filePaths.length) {
+      const filePath = filePaths[index++];
+      try {
+        const fileUri = vscode.Uri.file(filePath);
+        const content = await vscode.workspace.fs.readFile(fileUri);
+        if (content.byteLength > MAX_FILE_SIZE) {
+          continue;
+        }
+        snapshots.set(filePath, Buffer.from(content).toString('utf-8'));
+      } catch {
+        // File may have been deleted between listing and reading
+      }
+    }
+  }
+
+  const workerCount = Math.min(SNAPSHOT_READ_CONCURRENCY, filePaths.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+}
 
 let sessionCounter = 0;
 
@@ -27,30 +55,20 @@ export class SnapshotManager {
         .map((f) => f.fsPath)
         .filter((fp) => !isBinaryFile(fp) && !shouldIgnorePath(fp));
 
+      log(`Snapshot: ${candidates.length} candidate files (${files.length} total found)`);
+
       // Batch check gitignore via git
       const ignored = await batchCheckGitIgnored(candidates, folder.uri.fsPath);
 
-      for (const filePath of candidates) {
-        if (ignored.has(filePath)) {
-          continue;
-        }
-
-        try {
-          const fileUri = vscode.Uri.file(filePath);
-          const stat = await vscode.workspace.fs.stat(fileUri);
-          if (isFileTooLarge(stat.size)) {
-            continue;
-          }
-          const content = await vscode.workspace.fs.readFile(fileUri);
-          snapshots.set(filePath, Buffer.from(content).toString('utf-8'));
-        } catch {
-          // File may have been deleted between listing and reading
-        }
-      }
+      const filesToRead = candidates.filter((fp) => !ignored.has(fp));
+      const readStart = Date.now();
+      await readFilesParallel(filesToRead, snapshots);
+      log(`File reading: ${filesToRead.length} files in ${Date.now() - readStart}ms`);
     }
 
     const session: TrackingSession = { id: sessionId, snapshots };
     this.sessions.set(sessionId, session);
+    log(`Snapshot complete: ${snapshots.size} files captured`);
     return { sessionId };
   }
 

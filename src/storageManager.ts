@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import * as vscode from 'vscode';
 import { TrackingState } from './types';
+import { logError } from './logger';
 
 interface PersistedState {
   sessionId: string;
@@ -62,7 +63,7 @@ export class StorageManager {
       fs.writeFileSync(tmpFile, JSON.stringify(state), 'utf-8');
       fs.renameSync(tmpFile, this.stateFile);
     } catch (err) {
-      console.error('Diffus: failed to persist state', err);
+      logError('Failed to persist state', err);
     }
   }
 
@@ -100,7 +101,7 @@ export class StorageManager {
         snapshots,
       };
     } catch (err) {
-      console.error('Diffus: failed to load persisted state', err);
+      logError('Failed to load persisted state', err);
       return null;
     }
   }
@@ -111,7 +112,7 @@ export class StorageManager {
         fs.rmSync(this.storageDir, { recursive: true, force: true });
       }
     } catch (err) {
-      console.error('Diffus: failed to clear persisted state', err);
+      logError('Failed to clear persisted state', err);
     }
   }
 

@@ -2,6 +2,8 @@ export const DEBOUNCE_MS = 300;
 
 export const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1 MB
 
+export const SNAPSHOT_READ_CONCURRENCY = 50;
+
 export const ADDED_LINE_BG = 'rgba(0, 180, 0, 0.25)';
 export const ADDED_LINE_BG_OVERVIEW = 'rgba(0, 180, 0, 0.6)';
 export const ADDED_LINE_BORDER = 'rgba(0, 180, 0, 0.8)';

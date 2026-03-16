@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { DEBOUNCE_MS } from './constants';
 import { isBinaryFile, shouldIgnorePath, isFileTooLarge, checkGitIgnored } from './fileUtils';
+import { log } from './logger';
 import { computeHunks } from './diffEngine';
 import { SnapshotManager } from './snapshotManager';
 import { HunkManager } from './hunkManager';
@@ -25,6 +26,7 @@ export class FileSystemWatcherManager {
       return;
     }
 
+    log('File watcher started');
     this.watcher = vscode.workspace.createFileSystemWatcher('**/*');
 
     this.disposables.push(
@@ -112,9 +114,11 @@ export class FileSystemWatcherManager {
 
   private async onGitignoreChanged(): Promise<void> {
     const changedFiles = this.hunkManager.getChangedFiles();
+    log(`.gitignore changed, re-checking ${changedFiles.length} tracked files`);
     for (const filePath of changedFiles) {
       const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
       if (folder && (await checkGitIgnored(filePath, folder.uri.fsPath))) {
+        log(`Removing now-ignored file from tracking: ${filePath}`);
         this.hunkManager.removeAllHunksForFile(filePath);
       }
     }

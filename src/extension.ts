@@ -14,6 +14,7 @@ import { DiffViewManager } from './diffViewManager';
 import { computeHunks } from './diffEngine';
 import { computeDecorationRanges } from './rangeCalculator';
 import { copyPathForClaude } from './copyPathCommand';
+import { initLogger, log, logError } from './logger';
 
 let state = TrackingState.Idle;
 let activeSessionId: string | undefined;
@@ -31,6 +32,9 @@ let snapshotContentProvider: SnapshotContentProvider;
 let diffViewManager: DiffViewManager;
 
 export function activate(context: vscode.ExtensionContext): void {
+  initLogger();
+  log('Diffus extension activating');
+
   storageManager = new StorageManager();
   snapshotManager = new SnapshotManager();
   hunkManager = new HunkManager();
@@ -163,21 +167,27 @@ async function restorePersistedState(): Promise<void> {
       applyDecorationsToEditor(editor);
     }
   } catch (err) {
-    console.error('Diffus: failed to restore persisted state', err);
+    logError('Failed to restore persisted state', err);
   }
 }
 
 async function startTracking(): Promise<void> {
-  const { sessionId } = await snapshotManager.startSession();
-  activeSessionId = sessionId;
+  try {
+    log('Starting tracking session...');
+    const { sessionId } = await snapshotManager.startSession();
+    activeSessionId = sessionId;
 
-  watcherManager?.stop();
-  watcherManager = new FileSystemWatcherManager(snapshotManager, hunkManager, sessionId);
-  watcherManager.start();
+    watcherManager?.stop();
+    watcherManager = new FileSystemWatcherManager(snapshotManager, hunkManager, sessionId);
+    watcherManager.start();
 
-  state = TrackingState.Tracking;
-  updateContextKeys();
-  statusBarManager.update(state, hunkManager.getChangedFileCount());
+    state = TrackingState.Tracking;
+    updateContextKeys();
+    statusBarManager.update(state, hunkManager.getChangedFileCount());
+    log(`Tracking started (session: ${sessionId})`);
+  } catch (err) {
+    logError('Failed to start tracking', err);
+  }
 }
 
 function stopTracking(): void {

@@ -45,9 +45,21 @@ export class Uri {
   }
 }
 
+export class RelativePattern {
+  constructor(
+    public readonly base: { uri: Uri } | Uri | string,
+    public readonly pattern: string,
+  ) {}
+}
+
 export const workspace = {
   openTextDocument: vi.fn(),
   workspaceFolders: [],
+  findFiles: vi.fn(),
+  fs: {
+    readFile: vi.fn(),
+    stat: vi.fn(),
+  },
   asRelativePath: vi.fn((uri: { fsPath: string } | string) => {
     const fsPath = typeof uri === 'string' ? uri : uri.fsPath;
     return fsPath;
